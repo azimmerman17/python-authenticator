@@ -4,14 +4,26 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from ua_parser import parse_os, parse_device, parse
 
 from app.auth import bp
-from app.auth.functions import generate_salt, hash_value, encrypt_data
+from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_user
 from app.auth.queries import validate_user, get_person
 from app.functions.sql_functions import run_query
 from app.models.person import Person
 from config import Config
 
 # Authenicate a user for log in
-# @bp.route('/login', methods=['POST'])
+@bp.route('/login', methods=['POST'])
+def user_login(config_class=Config):
+  if request.method == 'POST':
+    data = request.json
+
+    # authenticate user to get the person
+    person = authenicate_user(data['user_name'], data['password'], config_class)
+    
+    if person == 'Error':
+      return {'message': 'Unable to authenticate user based on username/email and password combination'}, 401
+    
+    access_token = create_access_token(identity=person['person_id'])
+    return {'message': 'Login Success', 'access_token': access_token, 'person': person}
 
 # Create new user
 @bp.route('/new', methods=['POST'])
@@ -45,7 +57,6 @@ def new_user(config_class=Config):
 
     try:
       run_query(insert_query, hide=False)
-      person_id = run_query('SELECT LAST_INSERT_ID()', hide=False).mappings().all()
     except Exception as error:
       print(error)
       return {'msg': 'Error inserting new user data'}, 500
@@ -54,7 +65,7 @@ def new_user(config_class=Config):
     try:
       id = run_query('SELECT LAST_INSERT_ID() AS "id"', hide=False).mappings().all()
       person_id = id[0]['id']
-      
+
       access_token = create_access_token(identity=person_id)
       person = Person(person_id=person_id, user_name=data['user_name'], first_name=data['first_name'], last_name=data['last_name'], email=data['email']).as_dict()
     except Exception as error:
@@ -66,13 +77,6 @@ def new_user(config_class=Config):
     # send_email(email, config_class)
 
     return {'msg': 'Account Created', 'access_token': access_token, 'person': person}, 200
-
-
-
-
-
-
-
 
 # JWT protected route for to get a logged in user
 # @bp.route('/user', methods=['POST'])

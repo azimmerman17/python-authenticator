@@ -8,7 +8,8 @@ from ua_parser import parse_os, parse_device, parse
 from app.auth import bp
 from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_user
 from app.auth.queries import validate_user, get_person
-# from app.extensions import jwt
+from app.email.welcome_email.html import welcome_email
+from app.email.functions import send_email
 from app.functions.sql_functions import run_query
 from app.models.person import Person
 from config import Config
@@ -81,8 +82,15 @@ def new_user(config_class=Config):
       return {'msg': 'User created, error logging user in - Please attempt to log in'}, 500
 
     # Send a welcome email - Future Work
-    # email = welcome_email(data, config_class)
-    # send_email(email, config_class)
+    email_html = welcome_email(person, data['app'])
+    payload = {
+      'subject': f'Welcome to {data['app']['company']}',
+      'from': config_class.MAIL_USERNAME,
+      'to': data['email'] if config_class.ENV == 'PROD' else config_class.MAIL_USERNAME,
+      'html': email_html
+    }
+    
+    send_email(payload, config_class)
 
     return {'msg': 'Account Created', 'access_token': access_token, 'person': person}, 200
 
@@ -157,5 +165,4 @@ def update_user(id, config_class=Config):
 
     new_token = jwt.encode({'person': person, 'token_expires': decoded_token['token_expires']}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
     
-  
   return {'msg': 'User data updated', 'person': person, 'access_token': new_token}, 200

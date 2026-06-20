@@ -38,20 +38,36 @@ class Person(db.Model):
       SET reset_token = '{token}',
         reset_expire = NOW() + INTERVAL 3 HOUR,
         updated_at = NOW()
-      WHERE user_id = {self.user_id};
+      WHERE person_id = {self.person_id};
     """
 
     return query
 
-  def update_password(self, password):
+  def update_password(self, password, salt):
     query = f"""
       UPDATE `defaultdb`.`Person`
       SET password_hash = '{password}',
+        salt = '{salt}',
         reset_expire = NOW(),
         updated_at = NOW()
-      WHERE user_id = {self.user_id};
+      WHERE person_id = {self.person_id};
     """
     
     return query
 
-    
+  def update_person(self, data):
+    update_clause = ''
+
+    for key in data:
+      update_clause = f" {update_clause}, {key} = '{data[key]}'"
+
+    query = f"""
+      UPDATE `defaultdb`.`Person`
+      SET updated_at = NOW()
+        {update_clause}
+      WHERE person_id = {self.person_id};
+    """
+
+    return query
+
+

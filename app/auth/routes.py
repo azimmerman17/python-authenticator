@@ -109,3 +109,53 @@ def get_user(config_class=Config):
     except Exception as error:
       print('ERROR', error)
       return {'msg': 'Unable to retrieve user'}, 500
+
+# Update 
+@bp.route('/update/<int:id>', methods=['PUT'])
+def update_user(id, config_class=Config):
+  data = request.json
+
+  # retrieve and remove access token fron data
+  access_token = data['access_token']
+  del data['access_token']
+
+  # update password
+  if 'password' in data:
+    # Build dervived user information
+    salt = generate_salt()                                                                # user salt
+    encrypted_salt = encrypt_data(salt, config_class).decode()                            # encrypt salt
+    password_hash = hash_value(data['password'] + salt.decode()) + config_class.PEPPER    # hash password
+    
+    # build password query and remove password from data
+    password_query = Person(person_id=id).update_password(password_hash, encrypted_salt)
+    del data['password']
+
+    # run password query
+    try:
+      run_query(password_query)
+    except Exception as error:
+      print('ERROR', error)
+      return {'msg': 'Unable to update user password'}, 500
+
+  # check if data has keys
+  if data:
+    person_query = Person(person_id=id).update_person(data)
+
+    # run password query
+    try:
+      run_query(person_query)
+    except Exception as error:
+      print('ERROR', error)
+      return {'msg': 'Unable to update user data'}, 500
+
+    # update access token data
+    decoded_token = jwt.decode(access_token, Config.JWT_SECRET, algorithms=[Config.JWT_ALGORITHM])
+    person = decoded_token['person']
+    
+    for key in data:
+      person[key] = data[key]
+
+    new_token = jwt.encode({'person': person, 'token_expires': decoded_token['token_expires']}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
+    
+  
+  return {'msg': 'User data updated', 'person': person, 'access_token': new_token}, 200

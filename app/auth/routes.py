@@ -1,11 +1,14 @@
 from flask import request
 from markupsafe import escape
+from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
+import jwt
 from ua_parser import parse_os, parse_device, parse
 
 from app.auth import bp
 from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_user
 from app.auth.queries import validate_user, get_person
+# from app.extensions import jwt
 from app.functions.sql_functions import run_query
 from app.models.person import Person
 from config import Config
@@ -18,11 +21,16 @@ def user_login(config_class=Config):
 
     # authenticate user to get the person
     person = authenicate_user(data['user_name'], data['password'], config_class)
-    
+
     if person == 'Error':
       return {'message': 'Unable to authenticate user based on username/email and password combination'}, 401
     
-    access_token = create_access_token(identity=person['person_id'])
+    # create JWT access token
+    token_expires = datetime.now() + Config.JWT_ACCESS_TOKEN_EXPIRES
+    if isinstance(token_expires, (datetime)):
+      token_expires =  token_expires.isoformat()
+    # access_token = create_access_token(identity=person['person_id'])
+    access_token = jwt.encode({"person": person, 'token_expires': token_expires}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
     return {'message': 'Login Success', 'access_token': access_token, 'person': person}
 
 # Create new user
@@ -79,6 +87,25 @@ def new_user(config_class=Config):
     return {'msg': 'Account Created', 'access_token': access_token, 'person': person}, 200
 
 # JWT protected route for to get a logged in user
-# @bp.route('/user', methods=['POST'])
-# @jwt_required()
- 
+@bp.route('/user', methods=['POST'])
+def get_user(config_class=Config):
+  if request.method == 'POST':
+    try:
+      token = request.headers['Authorization'].split(' ')[1]
+
+      # decode token
+      decoded_token = jwt.decode(token, Config.JWT_SECRET, algorithms=[Config.JWT_ALGORITHM])
+      # check if expired -- reissue new token if not expires
+      if datetime.now().isoformat() <= decoded_token['token_expires']:
+        person = decoded_token['person']
+        new_expire = datetime.now() + Config.JWT_ACCESS_TOKEN_EXPIRES
+        if isinstance(new_expire, (datetime)):
+          new_expire =  new_expire.isoformat()
+        
+        new_token = jwt.encode({'person': person, 'token_expires': new_expire}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
+        return {'message': 'Success', 'access_token': new_token, 'person': person}
+      else:
+        return {'message': 'Token expired'}
+    except Exception as error:
+      print('ERROR', error)
+      return {'msg': 'Unable to retrieve user'}, 500

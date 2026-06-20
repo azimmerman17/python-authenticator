@@ -26,6 +26,7 @@ class Config:
   IV_LENGTH = os.environ.get('IV_LENGTH')
   JWT_SECRET = os.environ.get('JWT_SECRET')
   JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
-  JWT_TOKEN_LOCATION = os.environ.get('JWT_TOKEN_LOCATION')
+  JWT_TOKEN_LOCATION = 'headers' 
+  JWT_ALGORITHM= os.environ.get('JWT_ALGORITHM')
   JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=int(os.environ.get('JWT_ACCESS_TOKEN_EXPIRES')))
 

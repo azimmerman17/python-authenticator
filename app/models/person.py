@@ -36,7 +36,7 @@ class Person(db.Model):
     query = f"""
       UPDATE `defaultdb`.`Person`
       SET reset_token = '{token}',
-        reset_expire = NOW() + INTERVAL 3 HOUR,
+        reset_expire = NOW() + INTERVAL 30 MINUTE,
         updated_at = NOW()
       WHERE person_id = {self.person_id};
     """

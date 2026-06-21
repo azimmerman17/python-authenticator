@@ -1,9 +1,7 @@
 from flask import request
 from markupsafe import escape
 from datetime import datetime, timedelta
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 import jwt
-from ua_parser import parse_os, parse_device, parse
 
 from app.auth import bp
 from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_user
@@ -75,13 +73,16 @@ def new_user(config_class=Config):
       id = run_query('SELECT LAST_INSERT_ID() AS "id"', hide=False).mappings().all()
       person_id = id[0]['id']
 
-      access_token = create_access_token(identity=person_id)
       person = Person(person_id=person_id, user_name=data['user_name'], first_name=data['first_name'], last_name=data['last_name'], email=data['email']).as_dict()
+      token_expire = datetime.now() + Config.JWT_ACCESS_TOKEN_EXPIRES
+      if isinstance(token_expire, (datetime)):
+        token_expire =  token_expire.isoformat()
+      access_token = jwt.encode({'person': person, 'token_expires': token_expire}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
     except Exception as error:
       print(error)
       return {'msg': 'User created, error logging user in - Please attempt to log in'}, 500
 
-    # Send a welcome email - Future Work
+    # Send a welcome email
     email_html = welcome_email(person, data['app'])
     payload = {
       'subject': f'Welcome to {data['app']['company']}',

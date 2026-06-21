@@ -22,6 +22,9 @@ def create_app(config_class=Config):
   # Register Blueprints
   from app.auth import bp as auth_bp
   app.register_blueprint(auth_bp)
+   
+  from app.reset import bp as reset_bp
+  app.register_blueprint(reset_bp)
 
   # Define routes
   @app.route('/')

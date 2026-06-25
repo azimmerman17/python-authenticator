@@ -4,22 +4,22 @@ from datetime import datetime, timedelta
 import jwt
 
 from app.auth import bp
-from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_user
-from app.auth.queries import validate_user, get_person
+from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_person, detrive_password_data
+from app.auth.queries import validate_person, get_person
 from app.email.welcome_email.html import welcome_email
 from app.email.functions import send_email
 from app.functions.sql_functions import run_query
 from app.models.person import Person
 from config import Config
 
-# Authenicate a user for log in
+# Authenicate a person for log in
 @bp.route('/login', methods=['POST'])
-def user_login(config_class=Config):
+def person_login(config_class=Config):
   if request.method == 'POST':
     data = request.json
 
-    # authenticate user to get the person
-    person = authenicate_user(data['user_name'], data['password'], config_class)
+    # authenticate person to get the person
+    person = authenicate_person(data['user_name'], data['password'], config_class)
 
     if person == 'Error':
       return {'message': 'Unable to authenticate user based on username/email and password combination'}, 401
@@ -32,43 +32,39 @@ def user_login(config_class=Config):
     access_token = jwt.encode({"person": person, 'token_expires': token_expires}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
     return {'message': 'Login Success', 'access_token': access_token, 'person': person}
 
-# Create new user
+# Create new person
 @bp.route('/new', methods=['POST'])
-def new_user(config_class=Config):
+def new_person(config_class=Config):
     data = request.json
     # inputs -- first_name, last_name, user_name, email, password, app
-    # auto-generate -- user_id,, created_at, update_at, reset_token_expires
+    # auto-generate -- person_id,, created_at, update_at, reset_token_expires
     # dervived -- salt, password_hash, reset_token
 
     # validate user_name, email, password are present
     if data['user_name'] is None or data['email'] is None or data['password'] is None or data['first_name'] is None or data['last_name'] is None:
       return  {'msg': 'Unable to create user, required fields are missing.'}, 400
 
-    # Validate if user_name and email are unique
-    validate_new = validate_user(data['user_name'], data['email'])
     try:
-      v = run_query(validate_new, hide=False).mappings().all()
+      # Validate if user_name and email are unique
+      v = run_query(validate_person(data['user_name'], data['email'])).mappings().all()
       if len(v) > 0:
         return {'msg': 'Username or email already exists'}, 400
     except Exception as error:
       print(error)
       return {'msg': 'Error validating new user'}, 500
 
-    # Build dervived user information
-    salt = generate_salt()                                                                # user salt
-    encrypted_salt = encrypt_data(salt, config_class).decode()                            # encrypt salt
-    password_hash = hash_value(data['password'] + salt.decode()) + config_class.PEPPER    # hash password
+    # Build dervived person information
+    password_hash, encrypted_salt = detrive_password_data(data['password'], config_class)
     reset = hash_value(generate_salt().decode())                                          # reset token
 
-    insert_query = Person(user_name=data['user_name'], first_name=data['first_name'], last_name=data['last_name'], email=data['email'], salt=encrypted_salt, password_hash=password_hash, reset_token=reset).person_insert()
-
     try:
-      run_query(insert_query, hide=False)
+      # Create person
+      run_query(Person(user_name=data['user_name'], first_name=data['first_name'], last_name=data['last_name'], email=data['email'], salt=encrypted_salt, password_hash=password_hash, reset_token=reset).person_insert())
     except Exception as error:
       print(error)
       return {'msg': 'Error inserting new user data'}, 500
 
-    # retrieve the person id and Create JWT token for user
+    # retrieve the person id and Create JWT token for person
     try:
       id = run_query('SELECT LAST_INSERT_ID() AS "id"', hide=False).mappings().all()
       person_id = id[0]['id']
@@ -95,9 +91,9 @@ def new_user(config_class=Config):
 
     return {'msg': 'Account Created', 'access_token': access_token, 'person': person}, 200
 
-# JWT protected route for to get a logged in user
-@bp.route('/user', methods=['POST'])
-def get_user(config_class=Config):
+# JWT protected route for to get a logged in person
+@bp.route('/person', methods=['POST'])
+def get_person_jwt(config_class=Config):
   if request.method == 'POST':
     try:
       token = request.headers['Authorization'].split(' ')[1]
@@ -121,7 +117,7 @@ def get_user(config_class=Config):
 
 # Update 
 @bp.route('/update/<int:id>', methods=['PUT'])
-def update_user(id, config_class=Config):
+def update_person(id, config_class=Config):
   data = request.json
 
   # retrieve and remove access token fron data
@@ -130,29 +126,24 @@ def update_user(id, config_class=Config):
 
   # update password
   if 'password' in data:
-    # Build dervived user information
-    salt = generate_salt()                                                                # user salt
-    encrypted_salt = encrypt_data(salt, config_class).decode()                            # encrypt salt
-    password_hash = hash_value(data['password'] + salt.decode()) + config_class.PEPPER    # hash password
-    
-    # build password query and remove password from data
-    password_query = Person(person_id=id).update_password(password_hash, encrypted_salt)
+    # Build dervived person information
+    password_hash, encrypted_salt = detrive_password_data(data['password'], config_class)
+
+    # remove passowrd for dict 
     del data['password']
 
-    # run password query
     try:
-      run_query(password_query)
+      # run password query
+      run_query(Person(person_id=id).update_password(password_hash, encrypted_salt))
     except Exception as error:
       print('ERROR', error)
       return {'msg': 'Unable to update user password'}, 500
 
   # check if data has keys
   if data:
-    person_query = Person(person_id=id).update_person(data)
-
-    # run password query
     try:
-      run_query(person_query)
+      # update the person
+      run_query(Person(person_id=id).update_person(data))
     except Exception as error:
       print('ERROR', error)
       return {'msg': 'Unable to update user data'}, 500

@@ -2,7 +2,7 @@ from app.auth.queries import get_person_auth
 from app.functions.sql_functions import run_query
 from app.models.person import Person
 
-# function to generate user salt
+# function to generate salt
 def generate_salt():
   from cryptography.fernet import Fernet
   key = Fernet.generate_key()
@@ -33,27 +33,24 @@ def decrypt_data(data, CONFIG):
   token = f.decrypt(data)
   return token
 
-
-# authenicate a user
-def authenicate_user(user_name, password, config):
-  # get user_id and salt from user_name data
-  id_query = get_person_auth(user_name=user_name)
-
+# authenicate a person
+def authenicate_person(user_name, password, config):
   try:
-    res = run_query(id_query, hide=True).mappings().all()
+    # get person_id and salt from user_name data
+    res = run_query(get_person_auth(user_name=user_name)).mappings().all()
 
-    # can only return 1 valid row, if multiple or 0 rows are returned, cannot authenticate user
+    # can only return 1 valid row, if multiple or 0 rows are returned, cannot authenticate person
     if len(res) != 1:
       print('ERROR - Multiple or no users found')
       return 'Error'
     
-    user_salt = res[0]['salt']
+    salt = res[0]['salt']
     password_hash = res[0]['password_hash']
 
-    decrypted_user_salt = decrypt_data(user_salt, config)
+    decrypted_salt = decrypt_data(salt, config)
 
     # hash inputted password
-    hased_password = hash_value(password + decrypted_user_salt.decode()) + config.PEPPER
+    hased_password = hash_value(password + decrypted_salt.decode()) + config.PEPPER
 
     if hased_password != password_hash:
       print('ERROR - Password does not match')
@@ -64,3 +61,11 @@ def authenicate_user(user_name, password, config):
     return 'Error'
 
   return Person(person_id=res[0]['person_id'], user_name=res[0]['user_name'], first_name=res[0]['first_name'], last_name=res[0]['last_name'], email=res[0]['email']).as_dict()
+
+# function to hash password and encrypt salt
+def detrive_password_data(password, config_class):
+  salt = generate_salt()                                                                # paerson salt
+  encrypted_salt = encrypt_data(salt, config_class).decode()                            # encrypt salt
+  password_hash = hash_value(password + salt.decode()) + config_class.PEPPER    # hash password
+
+  return (password_hash, encrypted_salt)

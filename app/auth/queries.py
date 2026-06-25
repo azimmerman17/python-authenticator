@@ -1,5 +1,5 @@
-# Query to validate if a user's email and username is unique
-def validate_user(user_name=None, email=None):
+# Query to validate if a person's email and username is unique
+def validate_person(user_name=None, email=None):
   query = f"""
   SELECT person_id FROM `defaultdb`.Person P
   WHERE {f"(P.user_name = LOWER('{user_name}')" if user_name is not None else ''}
@@ -16,7 +16,7 @@ def get_person(key, value):
   """
   return query
 
-# Query to get user_id and salt from user_name data on login
+# Query to get person from user_name data on login
 def get_person_auth(user_name):
   query = f"""SELECT P.* FROM `defaultdb`.Person P
   WHERE LOWER(user_name) = LOWER('{user_name}')

@@ -24,7 +24,7 @@ def reset_password_email(person, otp, os, browser, app):
 
   # body
   bodyTEMP = f"""
-  <span class='preheader'>Use this link to reset your password. The link is only valid for 3 hours.</span>
+  <span class='preheader'>Use this code to reset your password. The code is only valid for 30 minutes.</span>
   <hr/>
   <table class='email-wrapper' width='100%' cellpadding='0' cellspacing='0' role='presentation'>
     <tr>
@@ -43,7 +43,7 @@ def reset_password_email(person, otp, os, browser, app):
                   <td class='content-cell'>
                     <div class='f-fallback'>
                       <h1>Hi {first_name} {last_name},</h1>
-                      <p>You recently requested to reset your password for your {company} account. Use the code below to reset your password. <strong>This one time password is only valid for the next 15 minutes.</strong></p>
+                      <p>You recently requested to reset your password for your {company} account. Use the code below to reset your password. <strong>This one time password is only valid for the next 30 minutes.</strong></p>
                       <!-- Action -->
                       <table class='body-action' align='center' width='100%' cellpadding='0' cellspacing='0' role='presentation'>
                         <tr>

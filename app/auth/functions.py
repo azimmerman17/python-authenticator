@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+import jwt
+
 from app.auth.queries import get_person_auth
 from app.functions.sql_functions import run_query
 from app.models.person import Person
@@ -69,3 +72,11 @@ def detrive_password_data(password, config_class):
   password_hash = hash_value(password + salt.decode()) + config_class.PEPPER    # hash password
 
   return (password_hash, encrypted_salt)
+
+# create JWT access token
+def create_jwt(person, Config):
+  token_expires = datetime.now() + Config.JWT_ACCESS_TOKEN_EXPIRES
+  if isinstance(token_expires, (datetime)):
+    token_expires =  token_expires.isoformat()
+  return jwt.encode({"person": person, 'token_expires': token_expires}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
+

@@ -5,8 +5,9 @@ from ua_parser import parse_os, parse_device, parse
 
 from app.reset import bp
 from app.reset.queries import get_person_request, get_person_reset
+from app.auth.queries import get_person
 from app.reset.functions import generate_reset_token
-from app.auth.functions import hash_value, detrive_password_data
+from app.auth.functions import hash_value, detrive_password_data, create_jwt
 from app.models.person import Person
 from app.functions.sql_functions import run_query
 from app.email.reset_email.html import reset_password_email
@@ -101,5 +102,13 @@ def reset_password(config_class=Config):
       print(error)
       return {'msg': 'Error updating password, please try again or contact support', 'variant': 'danger'}, 500\
 
-    # Return success - Do I want to automatically log in person??
-    return {'msg': 'Your password has updated successfully', 'variant': 'success'}, 200
+    try:
+      # Log person in
+      res = run_query(get_person('person_id', person[0]['person_id'])).mappings().all()
+
+      person = Person(person_id=res[0]['person_id'], user_name=res[0]['user_name'], first_name=res[0]['first_name'], last_name=res[0]['last_name'], email=res[0]['email']).as_dict()
+      access_token = create_jwt(person, config_class)
+      return  {'msg': 'Your password has updated successfully', 'access_token': access_token, 'person': person}, 200
+    except Exception as error:
+      print(error)
+      return {'msg': 'Your password has updated successfully, please return to the home page to log in', 'variant': 'success'}, 200

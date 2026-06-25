@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from app.auth import bp
-from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_person, detrive_password_data
+from app.auth.functions import generate_salt, hash_value, encrypt_data, authenicate_person, detrive_password_data, create_jwt
 from app.auth.queries import validate_person, get_person
 from app.email.welcome_email.html import welcome_email
 from app.email.functions import send_email
@@ -25,11 +25,7 @@ def person_login(config_class=Config):
       return {'message': 'Unable to authenticate user based on username/email and password combination'}, 401
     
     # create JWT access token
-    token_expires = datetime.now() + Config.JWT_ACCESS_TOKEN_EXPIRES
-    if isinstance(token_expires, (datetime)):
-      token_expires =  token_expires.isoformat()
-    # access_token = create_access_token(identity=person['person_id'])
-    access_token = jwt.encode({"person": person, 'token_expires': token_expires}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
+    access_token = create_jwt(person, config_class)
     return {'message': 'Login Success', 'access_token': access_token, 'person': person}
 
 # Create new person
@@ -70,10 +66,7 @@ def new_person(config_class=Config):
       person_id = id[0]['id']
 
       person = Person(person_id=person_id, user_name=data['user_name'], first_name=data['first_name'], last_name=data['last_name'], email=data['email']).as_dict()
-      token_expire = datetime.now() + Config.JWT_ACCESS_TOKEN_EXPIRES
-      if isinstance(token_expire, (datetime)):
-        token_expire =  token_expire.isoformat()
-      access_token = jwt.encode({'person': person, 'token_expires': token_expire}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
+      access_token = create_jwt(person, config_class)
     except Exception as error:
       print(error)
       return {'msg': 'User created, error logging user in - Please attempt to log in'}, 500
@@ -97,18 +90,15 @@ def get_person_jwt(config_class=Config):
   if request.method == 'POST':
     try:
       token = request.headers['Authorization'].split(' ')[1]
+      print(token)
 
       # decode token
       decoded_token = jwt.decode(token, Config.JWT_SECRET, algorithms=[Config.JWT_ALGORITHM])
+      print(decoded_token)
       # check if expired -- reissue new token if not expires
       if datetime.now().isoformat() <= decoded_token['token_expires']:
-        person = decoded_token['person']
-        new_expire = datetime.now() + Config.JWT_ACCESS_TOKEN_EXPIRES
-        if isinstance(new_expire, (datetime)):
-          new_expire =  new_expire.isoformat()
-        
-        new_token = jwt.encode({'person': person, 'token_expires': new_expire}, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
-        return {'message': 'Success', 'access_token': new_token, 'person': person}
+        new_token = create_jwt(decoded_token['person'], config_class)
+        return {'message': 'Success', 'access_token': new_token, 'person': decoded_token['person']}
       else:
         return {'message': 'Token expired'}
     except Exception as error:

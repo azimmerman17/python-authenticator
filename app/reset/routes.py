@@ -4,8 +4,9 @@ from datetime import datetime, timedelta
 from ua_parser import parse_os, parse_device, parse
 
 from app.reset import bp
-from app.reset.queries import get_user_reset
+from app.reset.queries import get_user_request, get_user_reset
 from app.reset.functions import generate_reset_token
+from app.auth.functions import hash_value, decrypt_data
 from app.models.person import Person
 from app.functions.sql_functions import run_query
 from app.email.reset_email.html import reset_password_email
@@ -28,12 +29,10 @@ def request_reset(config_class=Config):
   os = parsed_ua.os.family if parsed_ua.os.family != None else 'Unknown'
   device = parsed_ua.device.family if parsed_ua.device.family != None else 'Unknown'
   
-  
   # get user informtion
   try:
-    person_info = request.json['user_info'] #if
-    person_query = get_user_reset(person_info)
-    person = run_query(person_query).mappings().all()
+    person_info = request.json['person'] #if
+    person = run_query(get_user_request(person_info)).mappings().all()
 
     if len(person) != 1:
       print('ERROR - incorrect number of rows returned')
@@ -67,3 +66,41 @@ def request_reset(config_class=Config):
     print('ERROR - ', error)
     return {'msg': 'Unable to generate reset token'}, 500
 
+# route to reset a password 
+@bp.route('/password', methods=['POST'])
+def reset_password(config_class=Config):
+  if request.method == 'POST':
+    person = request.json['user']
+    token = request.json['token']
+    password = request.json['password']
+    confirm = request.json['confirm']
+
+    # Passwords do not match, cannot update
+    if password != confirm:
+      return {'msg': 'Unable to reset password - Passwords do not match', 'variant': 'danger'}, 400
+
+    # hash passed in reset token
+    hashed_token = hash_value(token)
+  
+    try:
+      # Get user based on hashed token
+      person = run_query(get_user_reset(person, hashed_token)).mappings().all()
+      if len(person) != 1:
+        return {'msg': 'Error validating user, your reset token is likely expired, please request a new password again.', 'variant': 'danger'}, 500
+    except Exception as error:
+      print(error)
+      return {'msg': 'Error updating password, please try again or contact support', 'variant': 'danger'}, 500
+
+    # Decrypt Salt and Hash the new password
+    decrypted_user_salt = decrypt_data(person[0]['salt'], config_class)
+    hashed_password = hash_value(password + decrypted_user_salt.decode()) + config_class.PEPPER
+
+    try:
+      # Update password query
+      run_query(Person(person_id=person[0]['person_id']).update_password(hashed_password))
+    except Exception as error:
+      print(error)
+      return {'msg': 'Error updating password, please try again or contact support', 'variant': 'danger'}, 500\
+
+    # Return success - Do I want to automatically log in user??
+    return {'msg': 'Your password has updated successfully', 'variant': 'success'}, 200

@@ -43,11 +43,10 @@ class Person(db.Model):
 
     return query
 
-  def update_password(self, password, salt):
+  def update_password(self, password):
     query = f"""
       UPDATE `defaultdb`.`Person`
       SET password_hash = '{password}',
-        salt = '{salt}',
         reset_expire = NOW(),
         updated_at = NOW()
       WHERE person_id = {self.person_id};

@@ -87,7 +87,7 @@ def reset_password(config_class=Config):
       # Get person based on hashed token
       person = run_query(get_person_reset(person, hashed_token)).mappings().all()
       if len(person) != 1:
-        return {'msg': 'Error validating user, your reset token is likely expired, please request a new password again.', 'variant': 'danger'}, 500
+        return {'msg': 'Error validating user, your reset token is likely expired, please request a new password again.', 'variant': 'danger'}, 401
     except Exception as error:
       print(error)
       return {'msg': 'Error updating password, please try again or contact support', 'variant': 'danger'}, 500

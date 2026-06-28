@@ -22,11 +22,11 @@ def person_login(config_class=Config):
     person = authenicate_person(data['user_name'], data['password'], config_class)
 
     if person == 'Error':
-      return {'message': 'Unable to authenticate user based on username/email and password combination'}, 401
+      return {'msg': 'Unable to authenticate user based on username/email and password combination'}, 401
     
     # create JWT access token
     access_token = create_jwt(person, config_class)
-    return {'message': 'Login Success', 'access_token': access_token, 'person': person}
+    return {'msg': 'Login Success', 'access_token': access_token, 'person': person}
 
 # Create new person
 @bp.route('/new', methods=['POST'])
@@ -82,7 +82,7 @@ def new_person(config_class=Config):
     
     send_email(payload, config_class)
 
-    return {'msg': 'Account Created', 'access_token': access_token, 'person': person}, 200
+    return {'msg': 'Account Created', 'access_token': access_token, 'person': person}, 211
 
 # JWT protected route for to get a logged in person
 @bp.route('/person', methods=['POST'])
@@ -98,9 +98,9 @@ def get_person_jwt(config_class=Config):
       # check if expired -- reissue new token if not expires
       if datetime.now().isoformat() <= decoded_token['token_expires']:
         new_token = create_jwt(decoded_token['person'], config_class)
-        return {'message': 'Success', 'access_token': new_token, 'person': decoded_token['person']}
+        return {'msg': 'Success', 'access_token': new_token, 'person': decoded_token['person']}
       else:
-        return {'message': 'Token expired'}
+        return {'msg': 'Token expired'}, 400
     except Exception as error:
       print('ERROR', error)
       return {'msg': 'Unable to retrieve user'}, 500

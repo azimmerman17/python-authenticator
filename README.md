@@ -180,7 +180,185 @@ Table to store a user's indentity
 
 ### EndPoints
 
-API documentation to come
+### Users
+
+#### 1. Register a New User
+* **Endpoint:** `POST /auth/new`
+* **Description:** Creates a new user profile and sends user a welcome email.
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+  ```json
+
+    "user_name": "John_Doe",
+    "password": "serect_password",
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "John_Doe@example.com",
+    "app": {
+        "company": "My company or application",
+        "login_url": "www.myapp.com/login",
+        "support_url": "https//:www.mysupportlink.com"
+    }
+  ```
+* **Success Response (211 Created):**
+  ```json
+  {
+    "access_token": "Generated JWT token",
+    "msg": "Account Created",
+    "person": {
+        "email": "John_Doe@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "person_id": 22123,
+        "user_name": "John_Doe"
+    }
+  }
+  ```
+#### 2. Login a User
+* **Endpoint:** `POST /auth/login`
+* **Description:** Authenticates a current user, allows for either the username or password to be used/
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+  ```json
+  { 
+    "user_name": "John_Doe@example.com",
+    "password":  "serect_password"
+  }
+  ```
+
+  **Success Response (200 OK):**
+  ```json
+  {
+    "access_token": "Generated JWT token",
+    "message": "Login Success",
+    "person": {
+        "email": "John_Doe@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "person_id": 22123,
+        "user_name": "John_Doe"
+    }
+  }
+  ```
+* **Error Response (401 Unauthorized):**
+  ```json
+  {
+    "msg": "Unable to authenticate user based on username/email and password combination"
+  }
+  ```
+
+#### 3. Get User with JWT
+* **Endpoint:** `POST /person`
+* **Description:** Get user from access token, no body required
+* **Headers:** `Content-Type: application/json`, `Authorization: Bearer {access_token}`
+
+  **Success Response (200 OK):**
+  ```json
+  {
+    "access_token": "Generated JWT token",
+    "message": "Sucess",
+    "person": {
+        "email": "John_Doe@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "person_id": 22123,
+        "user_name": "John_Doe"
+    }
+  }
+  ```
+
+#### 4. Update a user
+* **Endpoint:** `PUT /person/{id}`
+* **Description:** Update an authenticated users data and/or password
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+  ```json
+  { 
+    "email": "John_Doe1@example.com",
+    "password":  "new_serect_password"
+  }
+  ```
+
+  **Success Response (200 OK):**
+  ```json
+  {
+    "access_token": "Generated JWT token",
+    "message": "User data updated",
+    "person": {
+        "email": "John_Doe1@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "person_id": 22123,
+        "user_name": "John_Doe"
+    }
+  }
+  ```
+
+
+
+### Reset
+
+#### 1.User request password 
+* **Endpoint:** `POST reset/request`
+* **Description:** User Request to reset thier password, with email sent with reset instructions
+* **Headers:** `Content-Type: application/json`, 
+* **Request Body:**
+  ```json
+  { 
+    "user": "John_Doe@example.com",
+        "app": {
+        "company": "My company or application",
+        "login_url": "www.myapp.com/login",
+        "support_url": "https//:www.mysupportlink.com"
+    }
+  }
+  ```
+
+  **Success Response (200 OK):**
+  ```json
+  {
+    "msg": "reset email process complete"
+  }
+  ```
+
+#### 2.User password reset
+* **Endpoint:** `POST reset/password`
+* **Description:** User Request to reset thier password, with email sent with reset instructions
+* **Headers:** `Content-Type: application/json`, 
+* **Request Body:**
+  ```json
+  { 
+    "user": "John_Doe@example.com",
+    "token": "234322",
+    "password": "new_serect_password",
+    "confirm":  "new_serect_password"
+  }
+  ```
+
+  **Success Response (200 OK):**
+  ```json
+  {
+    "access_token": "Generated JWT token",
+    "message":  "Your password has updated successfully",
+    "person": {
+        "email": "John_Doe1@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "person_id": 22123,
+        "user_name": "John_Doe"
+    }
+  }
+  ```
+
+  ```
+  * **Error Response (401 Unauthorized):**
+  ```json
+  {
+    "msg": "Error validating user, your reset token is likely expired, please request a new password again.",
+    "variant": "danger"
+  }
+  ```
+
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
